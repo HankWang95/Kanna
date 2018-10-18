@@ -10,6 +10,7 @@ import (
 	"net"
 	"log"
 	_ "github.com/go-sql-driver/mysql"
+	"os"
 )
 
 
@@ -62,6 +63,7 @@ func flagHandler()  {
 // ———————————————————————————————————————————— Service -----------------------------------------------------
 
 var httpClient *http.Client
+var logger *log.Logger
 
 var (
 	MaxIdleConns = 100
@@ -70,6 +72,12 @@ var (
 
 func init() {
 	httpClient = createHTTPClient()
+	logFile,err := os.OpenFile("./kanna.log", os.O_WRONLY, os.ModeType)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf(logFile.Name())
+	logger = log.New(logFile, "[kanna-notebook] ", log.Ltime|log.Ldate|log.Lshortfile)
 }
 
 func createHTTPClient() *http.Client {
@@ -120,13 +128,13 @@ func youDaoTranslate(searchWord string) (result *word, err error) {
 	resp, err := httpClient.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Fatal("获取api出错" ,err)
+		logger.Fatal("获取api出错" ,err)
 	}
 	if err != nil {
 		return nil, err
 	}
 	if resp.Status != "200 OK" {
-		log.Print("调用翻译api发生错误")
+		logger.Print("调用翻译api发生错误")
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
@@ -136,7 +144,7 @@ func youDaoTranslate(searchWord string) (result *word, err error) {
 		return
 	}
 
-	ioutil.WriteFile("/Users/hank-for-work/Desktop/go/src/github.com/HankWang95/Kanna/notebook/searchWord.log", body, 0644)
+	logger.Printf("search word : %s, YouDao API resp : %s", searchWord, "sss")
 
 	var wordStruct = new(word)
 	wordStruct.Word = searchWord

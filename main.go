@@ -1,15 +1,41 @@
 package main
 
 import (
-	"github.com/HankWang95/Kanna/notebook/load"
 	"os"
+	"bufio"
+	"strings"
+	"fmt"
+	"github.com/HankWang95/Kanna/server"
+	"github.com/HankWang95/Kanna/load"
+	"log"
 )
 
+
+
 func main() {
-	flagDict := load.LoadingFlag()
-	// todo 把 where 换为读取输入
-	*flagDict[os.Args[1]] <- "where"
+	server.InitMySQL()
+	flagDict := load.NewLoaders()
+	go scan(flagDict)
 	select {
 
 	}
 }
+
+func scan(flagDict map[string]*chan string) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan(){
+		data := scanner.Text()
+		splitData := strings.Split(data, " ")
+		if flagChan, ok :=flagDict[splitData[0]]; ok{
+			*flagChan <- strings.Join(splitData[1:],"")
+		}else{
+			fmt.Println("flag not exist, read help")
+			log.SetFlags(log.Ldate)
+		}
+	}
+}
+
+
+// todo 非对称加密
+//func chackKeyForHeaven()  {
+//}
