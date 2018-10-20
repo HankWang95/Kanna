@@ -6,11 +6,14 @@ import (
 	"github.com/HankWang95/Kanna/server"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/smartwalle/dbs"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
+	"runtime"
+	"os/exec"
 )
 
 type word struct {
@@ -21,24 +24,41 @@ type word struct {
 	AppearTime   int                    `json:"appear_time"       sql:"appear_time"`
 	LastAppear   *time.Time             `json:"last_appear"       sql:"last_appear"`
 }
-//
-//func (w *word) FormatTranslations() string {
-//	t := w.Translations
-//
-//}
+
+func (w *word) FormatTranslations() {
+	fmt.Println("---- ", w.Word, " ----")
+	if v, ok := w.Translations["translation"]; ok {
+		fmt.Println("基本翻译: ", v.([]interface{}))
+	}
+	if v, ok := w.Translations["basic"]; ok {
+		basic := v.(map[string]interface{})
+		if v, ok := basic["us-phonetic"]; ok {
+			fmt.Println("美式发音: ", v.(string))
+		}
+		if v, ok := basic["uk-phonetic"]; ok {
+			fmt.Println("英式发音: ", v.(string))
+		}
+		if v, ok := basic["us-speech"]; ok {
+			usURL := fmt.Sprint(v.(string))
+			downloadMP3(w.Word, usURL)
+			fmt.Println("download")
+		}
+		if v, ok := basic["explains"]; ok {
+			fmt.Println("其他释义: ", v.([]interface{}))
+		}
+	}
+}
 
 // ———————————————————————————————————————————— Loader -----------------------------------------------------
 
 var queryWordChan = make(chan string, 10)
 
-// todo 统一装载 接口
 func queryWordEnter(word string) {
-	_, err := queryWord(word)
+	w, err := queryWord(word)
 	if err != nil {
 		logger.Println(err)
 	}
-	// todo 格式化输出
-	//os.Stdout.Write()
+	w.FormatTranslations()
 }
 
 type wordLoader struct{}
@@ -49,7 +69,7 @@ func NewWordLoader() *wordLoader {
 
 func (this *wordLoader) LoadingFlag() (flagDict map[string]*chan string) {
 	flagDict = make(map[string]*chan string)
-	flagDict["word"] = &queryWordChan
+	flagDict["w"] = &queryWordChan
 	go flagHandler()
 	return
 }
@@ -152,6 +172,41 @@ func youDaoTranslate(searchWord string) (result *word, err error) {
 		return nil, err
 	}
 	return wordStruct, nil
+}
+
+func downloadMP3(name, url string) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		logger.Println(" download MP3 err :", err)
+		return
+	}
+
+	// 查看是否有存放语音的文件夹
+	_, err = os.Stat("./speech/")
+	if err != nil{
+		os.Mkdir("./speech/", os.ModeDir|0777)
+	}
+
+	f, err := os.OpenFile(fmt.Sprint("./speech/", name, ".mp3"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	defer f.Close()
+	if err != nil {
+		logger.Fatal(err)
+		return
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		logger.Println(" download MP3 err :", err)
+		return
+	}
+	io.Copy(f, resp.Body)
+	resp.Body.Close()
+	// todo afplay only in mac
+	if runtime.GOOS == "darwin"{
+		cmd := exec.Command("afplay", f.Name())
+		cmd.Start()
+	}
+
+
 }
 
 func queryWord(searchWord string) (result *word, err error) {
