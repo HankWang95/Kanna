@@ -41,6 +41,8 @@ func init() {
 // ———————————————————————————————————————————— Loader -----------------------------------------------------
 
 var queryWordChan = make(chan string, 10)
+var wordListChan = make(chan string, 10)
+
 
 type wordLoader struct{}
 
@@ -60,7 +62,9 @@ func NewWordLoader() *wordLoader {
 func (this *wordLoader) LoadingFlag() (flagDict map[string]*chan string) {
 	flagDict = make(map[string]*chan string)
 	flagDict["w"] = &queryWordChan
+	flagDict["wl"] = &wordListChan
 	go flagHandler()
+	go dailyWordList()
 	return
 }
 
@@ -69,6 +73,8 @@ func flagHandler() {
 		select {
 		case word := <-queryWordChan:
 			queryWordEnter(word)
+		case n:=<-wordListChan:
+			wordListEnter(n)
 		}
 	}
 }
@@ -112,6 +118,22 @@ func (w *word) FormatTranslations() {
 			f.Close()
 			usURL := fmt.Sprint(v.(string))
 			go downloadMP3(w.Word, usURL)
+		}
+	}
+}
+
+func (w *word) FormatWordList() {
+	var fi interface{}
+	json.Unmarshal([]byte(w.Translations), &fi)
+	f := fi.(map[string]interface{})
+	fmt.Print("---- ",w.Word, " -- ")
+	if v, ok := f["translation"]; ok {
+		fmt.Println(v.([]interface{})[0], "----")
+	}
+	if v, ok := f["basic"]; ok {
+		basic := v.(map[string]interface{})
+		if v, ok := basic["explains"]; ok {
+			fmt.Println("其他释义: ", v.([]interface{}))
 		}
 	}
 }
