@@ -234,7 +234,9 @@ func downloadMP3(name, url string) {
 func playMP3(path string) {
 	if runtime.GOOS == "darwin" {
 		cmd := exec.Command("afplay", path)
-		cmd.Start()
+		//cmd.Start()
+		// todo diff
+		cmd.Run()
 	}
 }
 
