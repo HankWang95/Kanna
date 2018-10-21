@@ -1,8 +1,8 @@
 package load
 
 import (
-	"github.com/HankWang95/Kanna/services/notebook"
 	"errors"
+	"github.com/HankWang95/Kanna/services/notebook"
 	"log"
 )
 
@@ -18,28 +18,27 @@ func NewLoaders() (flagDict map[string]*chan string) {
 	return
 }
 
-func loading(loaders []Loader) (flagDict map[string]*chan string){
+func loading(loaders []Loader) (flagDict map[string]*chan string) {
 	flagDictList := make([]map[string]*chan string, 0)
-	for _, loader := range loaders{
+	for _, loader := range loaders {
 		flagDictList = append(flagDictList, loader.LoadingFlag())
 	}
 
-	flagDict,err := mergeMap(flagDictList)
-	if err != nil{
+	flagDict, err := mergeMap(flagDictList)
+	if err != nil {
 		log.Fatal(err)
 	}
 	return flagDict
 }
 
-
-func mergeMap(maps []map[string]*chan string) (mergedMap map[string]*chan string, err error){
+func mergeMap(maps []map[string]*chan string) (mergedMap map[string]*chan string, err error) {
 	var flagDict = make(map[string]*chan string)
 	flagDict = maps[0]
-	for i:=1; i < len(maps); i++{
-		for key, value := range maps[i]{
-			if _, ok := flagDict[key]; ok{
+	for i := 1; i < len(maps); i++ {
+		for key, value := range maps[i] {
+			if _, ok := flagDict[key]; ok {
 				return nil, errors.New("flag key 冲突")
-			}else{
+			} else {
 				flagDict[key] = value
 			}
 		}
