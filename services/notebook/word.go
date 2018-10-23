@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
+	"path"
 )
 
 var (
@@ -23,14 +24,28 @@ var (
 	key                 string
 	MaxIdleConns        = 100
 	MaxIdleConnsPerHost = 100
+	projectPath = path.Join(os.Getenv("HOME"), "Documents", "Kanna")
+	configPath = path.Join(projectPath, "config")
+	speechPath = path.Join(projectPath, "speech")
 )
 
 func init() {
+	_, err := os.Stat(projectPath)
+	if err != nil {
+		err := os.Mkdir(projectPath, os.ModeDir | 0777)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		_, err = os.Stat(speechPath)
+		if err != nil {
+			os.Mkdir(speechPath, os.ModeDir | 0777)
+		}
+	}
 	var config = ini4go.New(false)
 	config.SetUniqueOption(true)
-	config.Load("./config")
+	config.Load(configPath)
 	httpClient = createHTTPClient()
-	logFile, err := os.OpenFile("./kanna.log", os.O_WRONLY|os.O_TRUNC, os.ModeType)
+	logFile, err := os.OpenFile(path.Join(projectPath, "kanna.log"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0666)
 	key = config.GetValue("youdao", "key")
 	if err != nil {
 		logger.Fatal(err)
@@ -50,9 +65,9 @@ func queryWordEnter(word string) {
 	w, err := queryWord(word)
 	if err != nil {
 		logger.Println(err)
-		return
+	}else{
+		w.FormatTranslations()
 	}
-	w.FormatTranslations()
 }
 
 func NewWordLoader() *wordLoader {
@@ -110,7 +125,7 @@ func (w *word) FormatTranslations() {
 			fmt.Println("其他释义: ", v.([]interface{}))
 		}
 		if v, ok := basic["us-speech"]; ok {
-			f, err := os.Open(fmt.Sprint("./speech/", w.Word, ".mp3"))
+			f, err := os.Open(fmt.Sprint(speechPath + "/", w.Word, ".mp3"))
 			if err == nil {
 				playMP3(f.Name())
 				return
@@ -156,43 +171,21 @@ func createHTTPClient() *http.Client {
 }
 
 func youDaoTranslate(searchWord string) (result *word, err error) {
-	//requestUrl := fmt.Sprintf("http://fanyi.youdao.com/openapi.do?keyfrom=%s&key=%s&type=data&doctype=json&version=1.2&q=%s", KeyFrom, Key, searchWord)
 	requestUrl := fmt.Sprintf("http://fanyi.youdao.com/openapi.do?keyfrom=YouDaoCV&key=%s&type=data&doctype=json&version=1.2&q=%s", key, searchWord)
 	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
 
-	// ---------------- set cookie ---------------
-	//cookie1 := http.Cookie{
-	//	Name: "OUTFOX_SEARCH_USER_ID", Value: "1573694584@171.223.98.5",
-	//}
-	//req.AddCookie(&cookie1)
-	//cookie2 := http.Cookie{
-	//	Name: "OUTFOX_SEARCH_USER_ID_NCOO", Value: "OUTFOX_SEARCH_USER_ID_NCOO",
-	//}
-	//req.AddCookie(&cookie2)
-	//cookie3 := http.Cookie{
-	//	Name: "SESSION_FROM_COOKIE", Value: "YouDaoCV",
-	//}
-	//req.AddCookie(&cookie3)
-	//cookie4 := http.Cookie{
-	//	Name: "UM_distinctid", Value: "164b7c2827886c-070e1ce5101c3c-163e6952-13c680-164b7c28279868",
-	//}
-	//req.AddCookie(&cookie4)
-	//cookie5 := http.Cookie{
-	//	Name: "_ntes_nnid", Value: "eeb80d4edb02b6dd360641d2eae0debd,1533630352086",
-	//}
-	//req.AddCookie(&cookie5)
 
 	resp, err := httpClient.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
-		logger.Fatal("获取api出错", err)
+		logger.Println("获取api出错", err)
 	}
 
 	if resp.Status != "200 OK" {
-		logger.Print("调用翻译api发生错误")
+		logger.Println("调用翻译api发生错误")
 		return nil, err
 	}
-	//body, err := ioutil.ReadAll(resp.Body)
+
 	var wordStruct = new(word)
 	wordStruct.Word = searchWord
 	buf := new(bytes.Buffer)
@@ -210,12 +203,9 @@ func downloadMP3(name, url string) {
 	}
 
 	// 查看是否有存放语音的文件夹
-	_, err = os.Stat("./speech/")
-	if err != nil {
-		os.Mkdir("./speech/", os.ModeDir|0777)
-	}
 
-	f, err := os.OpenFile(fmt.Sprint("./speech/", name, ".mp3"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+
+	f, err := os.OpenFile(fmt.Sprint(speechPath, "/", name, ".mp3"), os.O_RDWR | os.O_CREATE | os.O_TRUNC, 0666)
 	defer f.Close()
 	if err != nil {
 		logger.Fatal(err)
@@ -241,8 +231,8 @@ func playMP3(path string) {
 }
 
 func queryWord(searchWord string) (result *word, err error) {
-	word, err := sqlGetWord(searchWord)
-	if err == nil {
+	word, sqlErr := sqlGetWord(searchWord)
+	if sqlErr == nil {
 		go sqlUpdateWord(word.Id)
 		return word, nil
 	}

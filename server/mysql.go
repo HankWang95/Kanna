@@ -3,14 +3,18 @@ package server
 import (
 	"github.com/smartwalle/dbs"
 	"github.com/smartwalle/ini4go"
+	"path"
+	"os"
 )
 
 var db dbs.DB
+var projectPath = path.Join(os.Getenv("HOME"), "Documents", "Kanna")
+
 
 func InitMySQL() {
 	var config = ini4go.New(false)
 	config.SetUniqueOption(true)
-	config.Load("./config")
+	config.Load(path.Join(projectPath, "config"))
 
 	var err error
 	// todo 配置文件
