@@ -13,9 +13,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"time"
-	"path"
 )
 
 var (
@@ -24,21 +24,21 @@ var (
 	key                 string
 	MaxIdleConns        = 100
 	MaxIdleConnsPerHost = 100
-	projectPath = path.Join(os.Getenv("HOME"), "Documents", "Kanna")
-	configPath = path.Join(projectPath, "config")
-	speechPath = path.Join(projectPath, "speech")
+	projectPath         = path.Join(os.Getenv("HOME"), "Documents", "Kanna")
+	configPath          = path.Join(projectPath, "config")
+	speechPath          = path.Join(projectPath, "speech")
 )
 
 func init() {
 	_, err := os.Stat(projectPath)
 	if err != nil {
-		err := os.Mkdir(projectPath, os.ModeDir | 0777)
+		err := os.Mkdir(projectPath, os.ModeDir|0777)
 		if err != nil {
 			logger.Fatal(err)
 		}
 		_, err = os.Stat(speechPath)
 		if err != nil {
-			os.Mkdir(speechPath, os.ModeDir | 0777)
+			os.Mkdir(speechPath, os.ModeDir|0777)
 		}
 	}
 	var config = ini4go.New(false)
@@ -58,14 +58,13 @@ func init() {
 var queryWordChan = make(chan string, 10)
 var wordListChan = make(chan string, 10)
 
-
 type wordLoader struct{}
 
 func queryWordEnter(word string) {
 	w, err := queryWord(word)
 	if err != nil {
 		logger.Println(err)
-	}else{
+	} else {
 		w.FormatTranslations()
 	}
 }
@@ -88,7 +87,7 @@ func flagHandler() {
 		select {
 		case word := <-queryWordChan:
 			queryWordEnter(word)
-		case n:=<-wordListChan:
+		case n := <-wordListChan:
 			wordListEnter(n)
 		}
 	}
@@ -125,7 +124,7 @@ func (w *word) FormatTranslations() {
 			fmt.Println("其他释义: ", v.([]interface{}))
 		}
 		if v, ok := basic["us-speech"]; ok {
-			f, err := os.Open(fmt.Sprint(speechPath + "/", w.Word, ".mp3"))
+			f, err := os.Open(fmt.Sprint(speechPath+"/", w.Word, ".mp3"))
 			if err == nil {
 				playMP3(f.Name())
 				return
@@ -141,7 +140,7 @@ func (w *word) FormatWordList() {
 	var fi interface{}
 	json.Unmarshal([]byte(w.Translations), &fi)
 	f := fi.(map[string]interface{})
-	fmt.Print("---- ",w.Word, " -- ")
+	fmt.Print("---- ", w.Word, " -- ")
 	if v, ok := f["translation"]; ok {
 		fmt.Println(v.([]interface{})[0], "----")
 	}
@@ -174,7 +173,6 @@ func youDaoTranslate(searchWord string) (result *word, err error) {
 	requestUrl := fmt.Sprintf("http://fanyi.youdao.com/openapi.do?keyfrom=YouDaoCV&key=%s&type=data&doctype=json&version=1.2&q=%s", key, searchWord)
 	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
 
-
 	resp, err := httpClient.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
@@ -204,8 +202,7 @@ func downloadMP3(name, url string) {
 
 	// 查看是否有存放语音的文件夹
 
-
-	f, err := os.OpenFile(fmt.Sprint(speechPath, "/", name, ".mp3"), os.O_RDWR | os.O_CREATE | os.O_TRUNC, 0666)
+	f, err := os.OpenFile(fmt.Sprint(speechPath, "/", name, ".mp3"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	defer f.Close()
 	if err != nil {
 		logger.Fatal(err)

@@ -3,13 +3,12 @@ package server
 import (
 	"github.com/smartwalle/dbs"
 	"github.com/smartwalle/ini4go"
-	"path"
 	"os"
+	"path"
 )
 
 var db dbs.DB
 var projectPath = path.Join(os.Getenv("HOME"), "Documents", "Kanna")
-
 
 func InitMySQL() {
 	var config = ini4go.New(false)
